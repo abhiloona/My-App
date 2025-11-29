@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Apna Store</title>
+    
+    <!-- Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Lucide Icons Script -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { -webkit-tap-highlight-color: transparent; user-select: none; font-family: sans-serif; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        
+        /* Desktop Scrollbar Styling */
+        @media (min-width: 768px) {
+            ::-webkit-scrollbar { width: 8px; }
+            ::-webkit-scrollbar-track { background: transparent; }
+            ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+            ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 md:bg-gray-200 md:flex md:items-center md:justify-center md:h-screen md:p-4">
+    <div id="root" class="w-full md:h-full md:flex md:justify-center"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const { Plus, Minus, ShoppingCart, Trash2, X } = lucide;
+
+        function ApnaStoreStable() {
+          const safeLoad = (key, fallback) => {
+            try {
+              const saved = localStorage.getItem(key);
+              return saved ? JSON.parse(saved) : fallback;
+            } catch (e) {
+              console.error("Storage Corrupted, Resetting:", key);
+              return fallback; 
+            }
+          };
+
+          const [activeTab, setActiveTab] = useState('store'); 
+          const [lang, setLang] = useState('hi'); 
+          const [theme, setTheme] = useState('light'); 
+          
+          const [budget, setBudget] = useState(() => {
+            try { return parseFloat(localStorage.getItem('apnaStore_budget')) || 10000; } catch { return 10000; }
+          });
+          
+          const [shopNumber, setShopNumber] = useState(() => {
+            return localStorage.getItem('apnaStore_shopNumber') || '';
+          });
+
+          const [cart, setCart] = useState(() => safeLoad('apnaStore_cart', []));
+          const [orderHistory, setOrderHistory] = useState(() => safeLoad('apnaStore_history', []));
+
+          const [itemName, setItemName] = useState(''); 
+          const [itemQty, setItemQty] = useState('');
+          const [aiMode, setAiMode] = useState(false);
+          const [aiInput, setAiInput] = useState('');
+          const [notification, setNotification] = useState('');
+          const [isEditingBudget, setIsEditingBudget] = useState(false);
+          const [tempBudget, setTempBudget] = useState('');
+          const [showClearConfirm, setShowClearConfirm] = useState(false);
+          const [isSettingNumber, setIsSettingNumber] = useState(false);
+          
+          const [showBill, setShowBill] = useState(false);
+          const [billCopied, setBillCopied] = useState(false);
+          const [tempNumber, setTempNumber] = useState(''); 
+          const [showNumberInput, setShowNumberInput] = useState(false);
+
+          useEffect(() => {
+            lucide.createIcons();
+          });
+
+          useEffect(() => { localStorage.setItem('apnaStore_budget', budget); }, [budget]);
+          useEffect(() => { localStorage.setItem('apnaStore_shopNumber', shopNumber); }, [shopNumber]);
+          useEffect(() => { localStorage.setItem('apnaStore_cart', JSON.stringify(cart)); }, [cart]);
+          useEffect(() => { localStorage.setItem('apnaStore_history', JSON.stringify(orderHistory)); }, [orderHistory]);
+
+          const t = {
+            store: { en: 'Store', hi: 'Dukaan' },
+            history: { en: 'History', hi: 'History' },
+            budget: { en: 'Budget', hi: 'Tijori' },
+            cart: { en: 'Cart', hi: 'Jhola' },
+            addItem: { en: 'Item Name', hi: 'Samaan Ka Naam' },
+            qty: { en: 'Qty', hi: 'Maatra' },
+            add: { en: 'ADD', hi: 'Jodein' },
+            empty: { en: 'Cart is Empty', hi: 'Jhola Khali Hai' },
+            order: { en: 'Generate Bill', hi: 'Bill Banayein' },
+            total: { en: 'Total', hi: 'Kul' },
+            repeat: { en: 'Repeat Order', hi: 'Dobara Mangwayen' },
+            saved: { en: 'Saved', hi: 'Bachat' },
+            spent: { en: 'Spent', hi: 'Kharch' },
+            clearCart: { en: 'Clear', hi: 'Khali Karein' },
+            confirmClear: { en: 'Empty entire cart?', hi: 'Pura jhola khali karein?' },
+            yes: { en: 'Yes', hi: 'Ha' },
+            no: { en: 'No', hi: 'Nahi' },
+            setNumber: { en: 'Set Shop Number', hi: 'Dukandaar Ka Number' },
+            save: { en: 'Save', hi: 'Save Karein' },
+            numberPlaceholder: { en: 'Enter 10 digit number', hi: '10 digit number daalein' },
+            billTitle: { en: 'Bill Summary', hi: 'Aapka Bill' },
+            sendWa: { en: 'Send on WhatsApp', hi: 'WhatsApp Par Bhejein' },
+            copy: { en: 'Copy List', hi: 'List Copy Karein' },
+            enterNo: { en: 'Enter Shopkeeper Number', hi: 'Dukandaar ka number dalein' }
+          };
+
+          const txt = (key) => t[key] ? t[key][lang] : key;
+
+          const bgMain = theme === 'dark' ? 'bg-slate-900' : 'bg-slate-50';
+          const textMain = theme === 'dark' ? 'text-white' : 'text-slate-800';
+          const cardBg = theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200';
+          const inputBg = theme === 'dark' ? 'bg-slate-700 text-white' : 'bg-slate-50 text-slate-700';
+          const subText = theme === 'dark' ? 'text-slate-400' : 'text-slate-500';
+
+          const smartAutoCorrect = (rawName) => {
+            if (!rawName) return '';
+            const n = rawName.toLowerCase().trim();
+            const corrections = {
+              'colget': 'Colgate', 'paste': 'Toothpaste', 'surf': 'Surf Excel', 'sabun': 'Sabun',
+              'ata': 'Aata', 'chawal': 'Chawal', 'dal': 'Daal', 'chini': 'Chini', 'namak': 'Namak',
+              'tel': 'Tel (Oil)', 'meggi': 'Maggie', 'biskut': 'Biscuit', 'alu': 'Aloo', 'pyaz': 'Pyaaz',
+              'kela': 'Kela', 'dudh': 'Doodh'
+            };
+            const keys = Object.keys(corrections);
+            const match = keys.find(k => n.includes(k));
+            return match ? corrections[match] : rawName.charAt(0).toUpperCase() + rawName.slice(1);
+          };
+
+          const getRateAndUnit = (n) => {
+            const name = n.toLowerCase();
+            let u = 'Kg', r = 60;
+            if (name.match(/(doodh|milk|oil|tel|liquid)/)) { u = 'Litre'; r = 120; }
+            else if (name.match(/(kela|banana|orange)/)) { u = 'Dozen'; r = 60; }
+            else if (name.match(/(anda|egg)/)) { u = 'Tray'; r = 180; }
+            else if (name.match(/(biscuit|maggie|chips|namkeen|salt|namak|tea|chai)/)) { u = 'Pkt'; r = 20; }
+            else if (name.match(/(sabun|soap|vim|brush|bulb)/)) { u = 'Pcs'; r = 35; }
+            else if (name.match(/(dhaniya|palak|methi)/)) { u = 'Gaddi'; r = 10; }
+            if (name.includes('aata')) r = 42;
+            if (name.includes('chawal')) r = 60;
+            if (name.includes('daal')) r = 160;
+            if (name.includes('ghee')) r = 600;
+            return { u, r };
+          };
+
+          const getVisuals = (name) => {
+            const n = name.toLowerCase();
+            if (n.match(/(mirch|lal|red|tamatar|tomato|apple|colgate)/)) return { color: 'bg-red-100 text-red-600', icon: 'ðŸ”´' };
+            if (n.match(/(palak|green|dhaniya|mirchi|vim)/)) return { color: 'bg-green-100 text-green-700', icon: 'ðŸŸ¢' };
+            if (n.match(/(maggie|haldi|tel|oil|banana|dal)/)) return { color: 'bg-yellow-100 text-yellow-700', icon: 'ðŸŸ¡' };
+            if (n.match(/(chai|tea|aloo|onion|biscuit|ginger)/)) return { color: 'bg-orange-100 text-orange-800', icon: 'ðŸŸ¤' };
+            if (n.match(/(doodh|milk|rice|namak|sugar|aata|soap|surf)/)) return { color: 'bg-slate-100 text-slate-600', icon: 'âšª' };
+            if (n.match(/(detergent|blue|water|harpic)/)) return { color: 'bg-blue-100 text-blue-600', icon: 'ðŸ”µ' };
+            return { color: 'bg-indigo-50 text-indigo-600', icon: name.charAt(0).toUpperCase(), isLetter: true };
+          };
+
+          const addItemToCart = (rawName, rawQty) => {
+            if(!rawName) return;
+            const qtyValue = parseFloat(rawQty) || 1; 
+            const fixedName = smartAutoCorrect(rawName);
+            const key = fixedName.toLowerCase();
+            const { u, r } = getRateAndUnit(key);
+            const visual = getVisuals(key);
+
+            setCart(prevCart => {
+              const existingIndex = prevCart.findIndex(i => i.id === key);
+              if (existingIndex !== -1) {
+                return prevCart.map((item, index) => index === existingIndex ? { ...item, qty: item.qty + qtyValue, totalCost: (item.qty + qtyValue) * item.rate } : item);
+              }
+              return [{ id: key, displayName: fixedName, qty: qtyValue, unit: u, rate: r, totalCost: qtyValue * r, visual: visual }, ...prevCart];
+            });
+            
+            if(!aiMode) {
+                setNotification(`Added: ${fixedName}`);
+                setTimeout(() => setNotification(''), 2000);
+            }
+          };
+
+          const handleManualAdd = () => {
+            if (!itemName) return;
+            addItemToCart(itemName, itemQty);
+            setItemName(''); setItemQty('');
+          };
+
+          const parseAndAdd = (text) => {
+            if (!text) return;
+            const chunks = text.toLowerCase().split(/,| aur | and | & /);
+            let addedCount = 0;
+            chunks.forEach(chunk => {
+              chunk = chunk.trim();
+              if(!chunk) return;
+              const qtyMatch = chunk.match(/(\d+(\.\d+)?)/);
+              let qty = 1; 
+              let name = chunk;
+              if (qtyMatch) {
+                qty = parseFloat(qtyMatch[0]) || 1;
+                name = chunk.replace(qtyMatch[0], '').replace(/(kg|l|litre|liter|gm|gram|pcs|pkt|packet|dozen|dz)/i, '').trim();
+              }
+              if (name) {
+                addItemToCart(name, qty); 
+                addedCount++;
+              }
+            });
+            if (addedCount > 0) {
+              setAiInput('');
+              setNotification(`Added ${addedCount} items`);
+              setTimeout(() => setNotification(''), 2000);
+            }
+          };
+
+          const updateQty = (index, change) => {
+            setCart(prevCart => prevCart.map((item, i) => i === index ? { ...item, qty: item.qty + change, totalCost: (item.qty + change) * item.rate } : item).filter(item => item.qty > 0));
+          };
+
+          const confirmClearCart = () => {
+            setCart([]);
+            setShowClearConfirm(false);
+            setNotification("Cart Cleared!");
+            setTimeout(() => setNotification(''), 2000);
+          };
+
+          const handleGenerateBill = () => {
+            setShowBill(true);
+            if (!shopNumber || shopNumber.length < 10) {
+                setShowNumberInput(true);
+            } else {
+                setShowNumberInput(false);
+            }
+          };
+
+          const sendToWhatsApp = () => {
+            let targetNumber = shopNumber;
+            if (showNumberInput) {
+                if (!tempNumber || tempNumber.length < 10) {
+                    alert("Please enter a valid 10-digit mobile number!");
+                    return;
+                }
+                targetNumber = tempNumber;
+                setShopNumber(tempNumber);
+                localStorage.setItem('apnaStore_shopNumber', tempNumber); 
+                setIsSettingNumber(false);
+            }
+
+            const cleanNumber = targetNumber.replace(/\D/g, '').slice(-10);
+            const totalBill = cart.reduce((acc, curr) => acc + curr.totalCost, 0);
+            
+            let msg = `*ðŸ›ï¸ Apna Store Order*\n------------------\n`;
+            cart.forEach(i => msg += `â–ªï¸ ${i.displayName}: ${i.qty} ${i.unit}\n`);
+            msg += `------------------\n*Total: â‚¹${totalBill.toLocaleString('en-IN')}*`;
+            
+            const newHistory = [{ date: new Date().toLocaleDateString(), items: cart, total: totalBill }, ...orderHistory];
+            setOrderHistory(newHistory);
+            localStorage.setItem('apnaStore_history', JSON.stringify(newHistory));
+
+            setCart([]);
+            localStorage.setItem('apnaStore_cart', JSON.stringify([]));
+
+            setShowBill(false);
+            setNotification('Order Saved & Sent!');
+            window.open(`https://wa.me/91${cleanNumber}?text=${encodeURIComponent(msg)}`, '_blank');
+          };
+
+          const copyBill = () => {
+            const totalBill = cart.reduce((acc, curr) => acc + curr.totalCost, 0);
+            let msg = `ðŸ›ï¸ Apna Store Order\n\n`;
+            cart.forEach(i => msg += `- ${i.displayName}: ${i.qty} ${i.unit}\n`);
+            msg += `\nTotal: â‚¹${totalBill.toLocaleString('en-IN')}`;
+            
+            const textArea = document.createElement("textarea");
+            textArea.value = msg;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                setBillCopied(true);
+                setTimeout(() => setBillCopied(false), 2000);
+            } catch (err) {
+                console.error('Unable to copy', err);
+            }
+            document.body.removeChild(textArea);
+          };
+
+          const repeatOrder = (oldItems) => {
+            setCart(oldItems);
+            setNotification('Order Copied!');
+            setTimeout(() => setNotification(''), 2000);
+            setActiveTab('cart');
+          };
+
+          const formatMoney = (amount) => amount.toLocaleString('en-IN');
+          const totalSpent = cart.reduce((acc, curr) => acc + curr.totalCost, 0);
+
+          return (
+            // Changed: max-w-md to responsive classes
+            <div className={`flex flex-col h-screen font-sans w-full max-w-md md:max-w-4xl mx-auto shadow-2xl overflow-hidden relative md:h-[90vh] md:rounded-[2rem] md:border-4 md:border-opacity-10 ${theme === 'dark' ? 'md:border-slate-700' : 'md:border-white'} ${bgMain} ${textMain}`}>
+              
+              {showClearConfirm && (
+                <div className="absolute inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+                  <div className={`${theme === 'dark' ? 'bg-slate-800' : 'bg-white'} p-6 rounded-2xl shadow-2xl w-full max-w-xs animate-in zoom-in duration-200`}>
+                    <h3 className="text-lg font-bold mb-2">âš ï¸ {txt('confirmClear')}</h3>
+                    <div className="flex gap-3 mt-4">
+                      <button onClick={() => setShowClearConfirm(false)} className={`flex-1 py-3 rounded-xl font-bold ${theme === 'dark' ? 'bg-slate-700' : 'bg-slate-100'}`}>{txt('no')}</button>
+                      <button onClick={confirmClearCart} className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold shadow-lg">{txt('yes')}</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {showBill && (
+                <div className="absolute inset-0 bg-black/80 z-50 flex items-end sm:items-center justify-center animate-in fade-in">
+                  <div className={`w-full max-w-sm ${theme === 'dark' ? 'bg-slate-900' : 'bg-white'} rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl slide-in-from-bottom-full sm:slide-in-from-bottom-10 transition-all`}>
+                    <div className="flex justify-between items-center mb-4 border-b border-dashed border-gray-300 pb-4">
+                       <div>
+                         <h2 className="text-2xl font-black">{txt('billTitle')}</h2>
+                         <p className={`text-xs ${subText}`}>{new Date().toLocaleDateString()}</p>
+                       </div>
+                       <button onClick={() => setShowBill(false)} className="p-2 bg-gray-100 rounded-full text-black"><i data-lucide="x"></i></button>
+                    </div>
+                    
+                    <div className="max-h-60 overflow-y-auto mb-4 space-y-2">
+                       {cart.map((i, idx) => (
+                         <div key={idx} className="flex justify-between text-sm">
+                            <span>{i.displayName} <span className="text-gray-400">x{i.qty}</span></span>
+                            <span className="font-bold">â‚¹{i.totalCost}</span>
+                         </div>
+                       ))}
+                    </div>
+                    
+                    <div className="flex justify-between items-center text-xl font-black border-t border-dashed border-gray-300 pt-4 mb-6">
+                       <span>Total to Pay</span>
+                       <span>â‚¹{formatMoney(totalSpent)}</span>
+                    </div>
+
+                    {showNumberInput && (
+                        <div className="mb-4 bg-yellow-50 border border-yellow-200 p-3 rounded-xl">
+                            <label className="text-xs font-bold text-yellow-800 uppercase mb-1 block">{txt('enterNo')}</label>
+                            <div className="flex items-center gap-2">
+                                <span className="text-gray-500 font-bold">+91</span>
+                                <input 
+                                    type="number" 
+                                    placeholder="Mobile Number" 
+                                    className="w-full bg-white p-2 rounded-lg border border-yellow-300 text-black font-bold outline-none"
+                                    value={tempNumber}
+                                    onChange={(e) => setTempNumber(e.target.value)}
+                                    autoFocus
+                                />
+                            </div>
+                            <p className="text-[10px] text-yellow-600 mt-1">One time setup for this phone.</p>
+                        </div>
+                    )}
+
+                    <div className="flex gap-3 flex-col">
+                       <button onClick={sendToWhatsApp} className="w-full bg-green-600 text-white py-4 rounded-xl font-bold shadow-lg flex justify-center items-center gap-2 active:scale-95 transition">
+                         <span className="text-xl">ðŸ“±</span> {showNumberInput ? "Save & Send" : txt('sendWa')}
+                       </button>
+                       <button onClick={copyBill} className={`w-full py-3 rounded-xl font-bold flex justify-center items-center gap-2 border ${theme === 'dark' ? 'border-slate-600 text-slate-300' : 'border-gray-200 text-gray-600'}`}>
+                         <span className="text-lg">{billCopied ? "âœ…" : "ðŸ“‹"}</span>
+                         {billCopied ? "Copied!" : txt('copy')}
+                       </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* HEADER */}
+              <div className={`p-4 flex justify-between items-center shadow-sm z-20 sticky top-0 border-b ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-gray-100'}`}>
+                <div>
+                   <h1 className="text-xl font-bold flex items-center gap-2">
+                     ðŸ›ï¸ Apna Store
+                   </h1>
+                   <p className={`text-[10px] font-bold uppercase h-4 ${subText}`}>
+                     {notification ? <span className="text-green-500">{notification}</span> : (aiMode ? "ðŸ¤– AI Listening..." : "âš¡ Auto-Save On")}
+                   </p>
+                </div>
+                <div className="flex gap-2">
+                   <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className={`p-2 rounded-full border ${theme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-gray-200 bg-gray-50'}`}>
+                     {theme === 'light' ? "ðŸŒ™" : "â˜€ï¸"}
+                   </button>
+                   <button onClick={() => setLang(lang === 'en' ? 'hi' : 'en')} className={`px-2 py-1 rounded-lg border font-bold text-xs ${theme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-gray-200 bg-gray-50'}`}>
+                     {lang === 'en' ? 'HI' : 'EN'}
+                   </button>
+                   <button onClick={() => setAiMode(!aiMode)} className={`px-2 py-1 rounded-lg border text-xs ${aiMode ? 'bg-pink-500 text-white border-pink-600' : (theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-200')}`}>
+                     {aiMode ? "ðŸ¤– AI" : "âŒ¨ï¸"}
+                   </button>
+                   <button onClick={() => setActiveTab('cart')} className={`relative p-2 rounded-full ${theme === 'dark' ? 'bg-slate-800' : 'bg-indigo-50 text-indigo-700'}`}>
+                      <i data-lucide="shopping-cart"></i>
+                      {cart.length > 0 && <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold">{cart.length}</span>}
+                   </button>
+                </div>
+              </div>
+
+              {/* CONTENT */}
+              <div className="flex-1 overflow-y-auto p-4 pb-24 md:p-8">
+                
+                {/* === TAB 1: DUKAAN === */}
+                {activeTab === 'store' && (
+                  <div className="space-y-6 md:space-y-8">
+                    {aiMode ? (
+                      <div className="bg-gradient-to-r from-pink-500 to-purple-600 p-1 rounded-3xl shadow-lg">
+                        <div className={`${theme === 'dark' ? 'bg-slate-900' : 'bg-white'} p-5 rounded-[1.3rem]`}>
+                          <h3 className="text-xs font-bold text-pink-500 uppercase mb-2">ðŸ§  AI Quick Add</h3>
+                          <textarea placeholder="Boliye: 10kg aata, 2 colgate..." value={aiInput} onChange={(e) => setAiInput(e.target.value)} className={`w-full p-3 rounded-xl outline-none text-sm h-20 resize-none ${inputBg} border border-transparent focus:border-pink-500`}/>
+                          <button onClick={() => parseAndAdd(aiInput)} className="w-full mt-3 bg-pink-600 text-white py-3 rounded-xl font-bold shadow-md">âœ¨ Process</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={`p-5 md:p-8 rounded-3xl shadow-sm border ${cardBg}`}>
+                        <label className={`text-xs font-bold uppercase ml-1 ${subText}`}>{txt('addItem')}</label>
+                        <div className="mt-1 mb-3">
+                           <input type="text" placeholder="Eg. Aata, Sabun..." value={itemName} onChange={(e) => setItemName(e.target.value)} className={`w-full p-3 md:p-4 rounded-xl outline-none font-medium ${inputBg}`}/>
+                        </div>
+                        <div className="flex items-end gap-3">
+                           <div className="flex-1">
+                             <label className={`text-xs font-bold uppercase ml-1 ${subText}`}>{txt('qty')}</label>
+                             <input type="number" placeholder="1" value={itemQty} onChange={(e) => setItemQty(e.target.value)} className={`w-full p-3 md:p-4 rounded-xl outline-none font-bold ${inputBg}`}/>
+                           </div>
+                           <button onClick={handleManualAdd} className="h-[48px] md:h-[56px] px-6 bg-indigo-600 text-white rounded-xl shadow-md active:scale-95 transition flex justify-center items-center gap-2 font-bold hover:bg-indigo-700">
+                             <i data-lucide="plus"></i> {txt('add')}
+                           </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {cart.length > 0 && (
+                      <div className={`rounded-2xl p-5 border ${theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                        <div className="flex justify-between items-center mb-3">
+                           <h3 className={`text-xs font-bold uppercase tracking-widest flex items-center gap-1 ${subText}`}>ðŸ“¦ {txt('cart')} Preview</h3>
+                        </div>
+                        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                          {cart.slice(0, 5).map((item, idx) => (
+                            <div key={idx} className="flex-shrink-0 flex flex-col items-center gap-1">
+                              <div className={`w-12 h-14 ${item.visual.color} rounded-lg shadow-sm flex items-center justify-center text-xl relative`}>
+                                {item.visual.isLetter ? <span className="font-black opacity-30 text-2xl">{item.visual.icon}</span> : <span>{item.visual.icon}</span>}
+                              </div>
+                              <span className={`text-[9px] font-bold truncate w-12 text-center ${subText}`}>{item.displayName}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <button onClick={() => setActiveTab('cart')} className={`w-full mt-4 py-3 rounded-xl font-bold shadow-sm flex justify-between items-center px-6 transition text-sm ${theme === 'dark' ? 'bg-slate-700 text-white' : 'bg-white text-indigo-600 border border-indigo-100'}`}>
+                          <span>Open Full {txt('cart')}</span> <span className="ml-2">â†’</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* === TAB 2: HISTORY === */}
+                {activeTab === 'history' && (
+                  <div className="space-y-4 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
+                     <h2 className="text-2xl font-bold px-1 md:col-span-2">{txt('history')}</h2>
+                     {orderHistory.length === 0 ? (
+                       <div className={`text-center py-20 md:col-span-2 ${subText}`}>
+                         <p className="text-4xl mb-4">ðŸ“œ</p>
+                         <p>No orders yet.</p>
+                       </div>
+                     ) : (
+                       orderHistory.map((order, idx) => (
+                         <div key={idx} className={`p-4 rounded-2xl border ${cardBg}`}>
+                            <div className="flex justify-between items-start mb-3">
+                               <div>
+                                 <p className="font-bold text-lg">{order.date}</p>
+                                 <p className={`text-xs ${subText}`}>{order.items.length} Items</p>
+                               </div>
+                               <p className="font-bold text-green-600">â‚¹{formatMoney(order.total)}</p>
+                            </div>
+                            <div className="flex flex-wrap gap-2 mb-4">
+                              {order.items.slice(0, 3).map((i, k) => (
+                                <span key={k} className={`text-xs px-2 py-1 rounded ${theme === 'dark' ? 'bg-slate-700' : 'bg-slate-100 text-slate-600'}`}>{i.displayName}</span>
+                              ))}
+                              {order.items.length > 3 && <span className="text-xs px-2 py-1 text-slate-400">+{order.items.length - 3} more</span>}
+                            </div>
+                            <button onClick={() => repeatOrder(order.items)} className="w-full bg-indigo-100 text-indigo-700 py-2 rounded-xl font-bold text-sm flex justify-center items-center gap-2">
+                              <span className="text-lg">ðŸ”</span> {txt('repeat')}
+                            </button>
+                         </div>
+                       ))
+                     )}
+                  </div>
+                )}
+
+                {/* === TAB 3: CART === */}
+                {activeTab === 'cart' && (
+                  <div className="space-y-4">
+                    {cart.length === 0 ? (
+                       <div className={`text-center py-20 ${subText}`}>
+                         <p className="text-6xl mb-4 opacity-30">ðŸ›’</p>
+                         <h3 className="font-bold text-sm">{txt('empty')}</h3>
+                         <button onClick={() => setActiveTab('store')} className="mt-4 text-indigo-600 text-xs font-bold underline">{txt('add')}</button>
+                       </div>
+                    ) : (
+                      <>
+                       <div className="flex justify-between items-center px-1">
+                          <h3 className="text-lg font-bold">{txt('cart')}</h3>
+                          <button onClick={() => setShowClearConfirm(true)} className="text-red-500 text-xs font-bold flex items-center gap-1 border border-red-200 px-3 py-1 rounded-full hover:bg-red-50">
+                            <i data-lucide="trash-2"></i> {txt('clearCart')}
+                          </button>
+                       </div>
+                       
+                       <div className="text-right px-1">
+                         <span className="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full border border-green-200">{txt('total')}: â‚¹{formatMoney(totalSpent)}</span>
+                       </div>
+
+                       <div className="space-y-3 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
+                         {cart.map((item, index) => (
+                           <div key={item.id} className={`p-3 rounded-2xl border flex items-center gap-4 ${cardBg}`}>
+                              <div className={`w-14 h-16 flex-shrink-0 ${item.visual.color} rounded-xl shadow-inner flex items-center justify-center text-2xl relative overflow-hidden`}>
+                                {item.visual.isLetter ? <span className="font-black opacity-30 text-2xl">{item.visual.icon}</span> : <span>{item.visual.icon}</span>}
+                              </div>
+                              <div className="flex-1">
+                                 <div className="flex justify-between items-start">
+                                    <div>
+                                       <h4 className="font-bold text-sm leading-tight">{item.displayName}</h4>
+                                       <p className={`text-[10px] font-medium uppercase mt-1 ${subText}`}>{item.unit} â€¢ â‚¹{item.rate}/{item.unit}</p>
+                                    </div>
+                                    <p className="font-bold text-sm">â‚¹{formatMoney(item.totalCost)}</p>
+                                 </div>
+                                 <div className="flex items-center gap-3 mt-2">
+                                    <button onClick={() => updateQty(index, -1)} className={`w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-80 text-lg ${theme === 'dark' ? 'bg-slate-700' : 'bg-slate-100 text-slate-600'}`}>
+                                      <i data-lucide="minus" className="w-4 h-4"></i>
+                                    </button>
+                                    <span className="font-bold w-6 text-center text-sm">{item.qty}</span>
+                                    <button onClick={() => updateQty(index, 1)} className={`w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-80 text-lg ${theme === 'dark' ? 'bg-indigo-600' : 'bg-indigo-100 text-indigo-600'}`}>
+                                      <i data-lucide="plus" className="w-4 h-4"></i>
+                                    </button>
+                                 </div>
+                              </div>
+                           </div>
+                         ))}
+                       </div>
+
+                       <div className={`p-5 rounded-3xl border mt-6 shadow-xl sticky bottom-2 ${theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'} md:static md:mt-8`}>
+                          <div className={`flex justify-between mb-4 text-lg border-b pb-4 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-100'}`}>
+                             <span className={`font-bold ${subText}`}>{txt('total')} Bill</span>
+                             <span className="font-black">â‚¹{formatMoney(totalSpent)}</span>
+                          </div>
+                          <button onClick={handleGenerateBill} className="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow-lg flex justify-center items-center gap-2 hover:bg-green-700 active:scale-95 transition">
+                            ðŸ“± {txt('order')}
+                          </button>
+                       </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* === TAB 4: TIJORI (BUDGET) === */}
+                {activeTab === 'budget' && (
+                  <div className="space-y-6 md:grid md:grid-cols-2 md:gap-8 md:space-y-0">
+                     
+                     <div className={`p-6 rounded-[2rem] border ${cardBg} md:flex md:flex-col md:justify-center`}>
+                        <p className={`text-xs font-bold uppercase mb-3 ${subText}`}>ðŸ“ž {txt('setNumber')}</p>
+                        {isSettingNumber ? (
+                          <div className="flex gap-2">
+                            <input type="number" placeholder={txt('numberPlaceholder')} value={shopNumber} onChange={(e) => setShopNumber(e.target.value)} className={`flex-1 p-2 rounded-lg outline-none ${inputBg}`} autoFocus/>
+                            <button onClick={() => setIsSettingNumber(false)} className="bg-indigo-600 text-white px-4 rounded-lg font-bold text-xs">{txt('save')}</button>
+                          </div>
+                        ) : (
+                          <div onClick={() => setIsSettingNumber(true)} className="flex justify-between items-center cursor-pointer">
+                            <p className="font-bold text-lg">{shopNumber ? `+91 ${shopNumber}` : "Tap to Add Number"}</p>
+                            <span className="text-xl">âœï¸</span>
+                          </div>
+                        )}
+                     </div>
+
+                     <div className="bg-gradient-to-br from-indigo-900 to-slate-900 text-white p-6 rounded-[2rem] shadow-xl relative overflow-hidden">
+                       <p className="text-gray-400 font-bold text-xs uppercase mb-4 tracking-widest">ðŸ’° {txt('budget')}</p>
+                       {isEditingBudget ? (
+                         <div className="flex flex-col items-center gap-4">
+                            <input type="number" value={tempBudget} onChange={(e) => setTempBudget(e.target.value)} className="text-3xl font-black text-center w-full border-b-2 border-indigo-500 outline-none text-white pb-2 bg-transparent" placeholder="â‚¹" autoFocus />
+                            <button onClick={() => { setBudget(parseFloat(tempBudget) || 0); setIsEditingBudget(false); }} className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold">Save</button>
+                         </div>
+                      ) : (
+                        <div onClick={() => { setTempBudget(budget); setIsEditingBudget(true); }} className="cursor-pointer mb-6">
+                          <h2 className="text-3xl font-black text-white">â‚¹{formatMoney(budget)}</h2>
+                          <p className="text-[9px] text-gray-500 mt-1">Tap to edit</p>
+                        </div>
+                      )}
+                       
+                       <div className="h-4 bg-gray-700 rounded-full overflow-hidden mb-3 border border-gray-600">
+                          <div className={`h-full transition-all duration-700 ${totalSpent > budget ? 'bg-red-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min((totalSpent / budget) * 100, 100)}%` }}></div>
+                       </div>
+                       <div className="flex justify-between text-xs text-gray-400 font-medium px-1"><span>{txt('spent')}: â‚¹{formatMoney(totalSpent)}</span><span>Limit: 100%</span></div>
+                    </div>
+
+                    <div className={`p-6 rounded-[2rem] border text-center ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'} md:col-span-2 md:flex md:items-center md:justify-around`}>
+                        {budget - totalSpent >= 0 ? (
+                            <>
+                                <p className="text-emerald-500 text-xs font-bold uppercase tracking-widest mb-1">{txt('saved')}</p>
+                                <p className="text-4xl font-bold">â‚¹{formatMoney(budget - totalSpent)}</p>
+                            </>
+                        ) : (
+                            <>
+                                <p className="text-red-500 text-xs font-bold uppercase tracking-widest mb-1">Over Budget</p>
+                                <p className="text-4xl font-bold text-red-500">- â‚¹{formatMoney(Math.abs(budget - totalSpent))}</p>
+                            </>
+                        )}
+                    </div>
+                  </div>
+                )}
+
+              </div>
+
+              {/* BOTTOM NAV */}
+              <div className={`border-t fixed bottom-0 w-full md:absolute md:w-full max-w-md md:max-w-full flex justify-around py-3 pb-6 z-20 md:rounded-b-[2rem] rounded-t-3xl shadow-[0_-5px_15px_rgba(0,0,0,0.05)] ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+                <button onClick={() => setActiveTab('store')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'store' ? 'text-indigo-600 scale-105' : subText}`}><i data-lucide="store" className="w-5 h-5"></i><span className="text-[10px] font-bold">{txt('store')}</span></button>
+                <button onClick={() => setActiveTab('history')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'history' ? 'text-indigo-600 scale-105' : subText}`}><i data-lucide="history" className="w-5 h-5"></i><span className="text-[10px] font-bold">{txt('history')}</span></button>
+                <button onClick={() => setActiveTab('budget')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'budget' ? 'text-indigo-600 scale-105' : subText}`}><i data-lucide="wallet" className="w-5 h-5"></i><span className="text-[10px] font-bold">{txt('budget')}</span></button>
+              </div>
+            </div>
+          );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<ApnaStoreStable />);
+    </script>
+</body>
+</html>
+
